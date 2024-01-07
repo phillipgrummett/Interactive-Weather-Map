@@ -2,7 +2,7 @@ import os
 import time
 import json
 import folium
-import datetime as dt
+#import datetime as dt
 import requests as api_request
 
 from geopy.geocoders import Nominatim
@@ -60,76 +60,51 @@ def find_variable_name(html, name_start):
 
     return html[starting_index:ending_index]
 
-#custom code that is being injected to folium map html file
 def custom_code(popup_variable_name, map_variable_name, folium_port):
     return '''
-            //custom code
+            // custom code
             function latLngPop(e) {
                 %s
                     .setLatLng(e.latlng)
                     .setContent(`
-                        <div style="text-align: center;">
-                            <p style="font-size: 16px; font-weight: bold;">
-                                Coordinates:
-                            </p>
-                            <p style="font-size: 14px;">
-                                Lat: ${e.latlng.lat.toFixed(5)}, Long: ${e.latlng.lng.toFixed(5)}
-                            </p>
-                            <button style="background-color: #4CAF50; /* Green */
-                                           border: none;
-                                           color: white;
-                                           padding: 10px 20px;
-                                           text-align: center;
-                                           text-decoration: none;
-                                           display: inline-block;
-                                           font-size: 16px;
-                                           margin: 4px 2px;
-                                           cursor: pointer;
-                                           border-radius: 5px;"
-                                    onClick="
-                                        // send coord data over localhost
-                                        fetch('http://localhost:%s', {
-                                            method: 'POST',
-                                            mode: 'no-cors',
-                                            headers: {
-                                                'Accept': 'application/json',
-                                                'Content-Type': 'application/json'
-                                            },
-                                            body: JSON.stringify({
-                                                latitude: ${e.latlng.lat},
-                                                longitude: ${e.latlng.lng}
-                                            })
-                                        });
+                    <div class = "popup-container">
+                        <p class="popup-title"> Coordinates: </p>
+                        <p class="popup-coordinates">
+                            Lat: ${e.latlng.lat.toFixed(5)}, Long: ${e.latlng.lng.toFixed(5)}
+                        </p>
+                            <button class="popup-button"
+                                onClick="
+                                fetch('http://localhost:%s', {
+                                    method: 'POST',
+                                    mode: 'no-cors',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        latitude: ${e.latlng.lat},
+                                        longitude: ${e.latlng.lng}
+                                    })
+                                });
 
-                                        // place the popup marker
-                                        L.marker(
-                                            [${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}],
-                                            {}
-                                        ).addTo(%s);
-                                    "> Get Weather </button>
-                            <button style="background-color: #f44336; /* Red */
-                                           border: none;
-                                           color: white;
-                                           padding: 10px 20px;
-                                           text-align: center;
-                                           text-decoration: none;
-                                           display: inline-block;
-                                           font-size: 16px;
-                                           margin: 4px 2px;
-                                           cursor: pointer;
-                                           border-radius: 5px;"
-                                    onClick="
-                                        fetch('http://localhost:%s', {
-                                            method: 'POST',
-                                            mode: 'no-cors',
-                                            headers: {
-                                                'Accept': 'application/json',
-                                                'Content-Type': 'application/json'
-                                            },
-                                            body: 'q'
-                                        });
-                                    "> Quit </button>
-                        </div>
+                                L.marker(
+                                    [${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}],
+                                    {}
+                                ).addTo(%s);
+                            "> Get Weather </button>
+                            <button class="quit-button"
+                                onClick="
+                                fetch('http://localhost:%s', {
+                                    method: 'POST',
+                                    mode: 'no-cors',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: 'q'
+                                });
+                            "> Quit </button>
+                    </div>
                     `)
                     .openOn(%s);
             }
@@ -159,7 +134,7 @@ def create_folium_map(map_filepath, center_coord, folium_port):
     #determine popup function indices
     pstart, pend = find_popup_slice(html)
 
-    custom_css_link = '''   <link href="styles.css" rel="stylesheet">
+    custom_css_link = '''    <link href="styles.css" rel="stylesheet">
 '''
     css_index = find_head_index(html)
 
@@ -217,8 +192,6 @@ def weather_request(BASE_URL, API_KEY, coords):
         #make human readable
         sanitize_weather(response, latitude, longitude, CITY, STATE, COUNTRY)
 
-
-
 def sanitize_weather(response, latitude, longitude, CITY, STATE, COUNTRY):
     temp_kelvin = response['main']['temp']
     temp_celsius, temp_fahrenheit = kelvin_to_celsius_fahrenheit(temp_kelvin)
@@ -230,8 +203,8 @@ def sanitize_weather(response, latitude, longitude, CITY, STATE, COUNTRY):
 
     humidity = response['main']['humidity']
     description = response['weather'][0]['description']
-    sunrise_time = dt.datetime.utcfromtimestamp(response['sys']['sunrise'] + response['timezone'])
-    sunset_time = dt.datetime.utcfromtimestamp(response['sys']['sunset'] + response['timezone'])
+    #sunrise_time = dt.datetime.utcfromtimestamp(response['sys']['sunrise'] + response['timezone'])
+    #sunset_time = dt.datetime.utcfromtimestamp(response['sys']['sunset'] + response['timezone'])
 
     comma1 = ', '
     comma2 = ', '
@@ -246,17 +219,18 @@ def sanitize_weather(response, latitude, longitude, CITY, STATE, COUNTRY):
     print(f"Temparature in {LOCATION}: {temp_celsius:.2f} degrees Celsius or {temp_fahrenheit:.2f} degrees Fahrenheit.")
     print(f"Temperature in {LOCATION} feels like: {feels_like_celsius:.2f} degrees Celsius.")
     print(f"Humidity in {LOCATION}: {humidity}%")
-    print(f"Wind Speed in {LOCATION}: {wind_speed} m/s")
+    #print(f"Wind Speed in {LOCATION}: {wind_speed} m/s")
     print(f"General Weather in {LOCATION}: {description}")
-    print(f"Sun rises in {LOCATION} at {sunrise_time} local time.")
-    print(f"Sun sets in {LOCATION} at {sunset_time} local time.")
+    #print(f"Sun rises in {LOCATION} at {sunrise_time} local time.")
+    #print(f"Sun sets in {LOCATION} at {sunset_time} local time.")
 
     
 def valid_location(latitude, longitude):
-
+    #try catch for errors
     try:
         location = geolocator.reverse(latitude + ", " + longitude)
 
+        #if location not None
         if location and location.raw.get('address'):
 
             address = location.raw['address']
@@ -264,9 +238,11 @@ def valid_location(latitude, longitude):
             state = address.get('state', '')
             country = address.get('country', '')
 
+            #return valid, city, state, country
             return True, city, state, country
         else:
             print("Location not found.") 
+            #return valid, None, None, None
             return False, '', '', ''
     except(GeocoderTimedOut, GeocoderServiceError) as e:
         print(f"error: {e}")

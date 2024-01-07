@@ -30,10 +30,10 @@ def weather_request(BASE_URL, API_KEY, coords):
         response = api_request.get(url).json()
 
         # make human readable
-        sanitize_weather(response, latitude, longitude, city, state, country)
+        sanitize_weather(response, city, state, country)
 
 
-def sanitize_weather(response, latitude, longitude, city, state, country):
+def sanitize_weather(response, city, state, country):
     temp_kelvin = response['main']['temp']
     temp_celsius, temp_fahrenheit = kelvin_to_celsius_fahrenheit(temp_kelvin)
 
@@ -160,7 +160,7 @@ def custom_code(popup_variable_name, map_variable_name, FOLIUM_PORT):
                         <p class="popup-coordinates">
                             Lat: ${e.latlng.lat.toFixed(5)}, Long: ${e.latlng.lng.toFixed(5)}
                         </p>
-                            // send latitude and longitude over HTTP POST
+
                             <button class="popup-button"
                                 onClick="
                                 fetch('http://localhost:%s', {
@@ -175,13 +175,13 @@ def custom_code(popup_variable_name, map_variable_name, FOLIUM_PORT):
                                         longitude: ${e.latlng.lng}
                                     })
                                 });
-                                // code to add a marker
+
                                 L.marker(
                                     [${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}],
                                     {}
                                 ).addTo(%s);
                             "> Get Weather </button>
-                            // send quit char over HTTP POST
+
                             <button class="quit-button"
                                 onClick="
                                 fetch('http://localhost:%s', {
@@ -205,7 +205,7 @@ def custom_code(popup_variable_name, map_variable_name, FOLIUM_PORT):
 # create the folium map and insert the custom code for css stylesheet and get weather popup
 def create_folium_map(MAP_FILEPATH, STARTUP_COORDS, FOLIUM_PORT, STARTUP_ZOOM):
     # create folium map
-    vmap = folium.Map(STARTUP_COORDS, STARTUP_ZOOM)
+    vmap = folium.Map(STARTUP_COORDS, zoom_start=STARTUP_ZOOM)
 
     # add popup
     folium.LatLngPopup().add_to(vmap)
@@ -328,11 +328,14 @@ if __name__ == "__main__":
     # open the folium map (selenium)
     driver = open_folium_map(PROJECT_FILEPATH, MAP_FILEPATH)
 
-    # run webserver that listens to sent coordinates
-    listen_to_folium_map(FOLIUM_PORT)
-
-    # close the folium map
-    close_folium_map(driver)
+    try:
+        # run webserver that listens to sent coordinates
+        listen_to_folium_map(FOLIUM_PORT)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # close the folium map
+        close_folium_map(driver)
 
     # save coords to json file
     json.dump(coords, open(JSON_COORD_FILEPATH, 'w'))

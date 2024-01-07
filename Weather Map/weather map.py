@@ -6,10 +6,18 @@ import datetime as dt
 import requests as api_request
 
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
 from selenium import webdriver
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
+
+def find_head_index(html):
+    pattern = "</head>"
+    starting_index = html.find(pattern)
+    
+    return starting_index
 
 #find the starting and ending index of latLngPop function (marker popup function)
 def find_popup_slice(html):
@@ -55,7 +63,7 @@ def find_variable_name(html, name_start):
 #custom code that is being injected to folium map html file
 def custom_code(popup_variable_name, map_variable_name, folium_port):
     return '''
-            // custom code
+            //custom code
             function latLngPop(e) {
                 %s
                     .setLatLng(e.latlng)
@@ -95,7 +103,7 @@ def custom_code(popup_variable_name, map_variable_name, folium_port):
 
                                         // place the popup marker
                                         L.marker(
-                                            [${e.latlng.lat.toFixed(2)}, ${e.latlng.lng.toFixed(2)}],
+                                            [${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}],
                                             {}
                                         ).addTo(%s);
                                     "> Get Weather </button>
@@ -151,13 +159,20 @@ def create_folium_map(map_filepath, center_coord, folium_port):
     #determine popup function indices
     pstart, pend = find_popup_slice(html)
 
+    custom_css_link = '''   <link href="styles.css" rel="stylesheet">
+'''
+    css_index = find_head_index(html)
+
     #inject code
     with open(map_filepath, 'w') as mapfile:
         mapfile.write(
-            html[:pstart] + \
+            html[:css_index] + \
+            custom_css_link + \
+            html[css_index:pstart] + \
             custom_code(popup_variable_name, map_variable_name, folium_port) + \
             html[pend:]
         )
+    
 
 #open the folium map using selenium
 def open_folium_map(project_url, map_filepath):
@@ -187,14 +202,24 @@ def kelvin_to_celsius_fahrenheit(kelvin):
     return celsius, fahrenheit
 
 def weather_request(BASE_URL, API_KEY, coords):
-    #coords updates on each map click. use negative indexing (-1) to specifiy last element in list each time
+
+    #coords updates on each map click. use negative indexing (-1) to specifiy last element in list
     latitude = coords[-1]["latitude"]
     longitude = coords[-1]["longitude"]
-    url = f"{BASE_URL}lat={latitude}&lon={longitude}&appid={API_KEY}"
-    response = api_request.get(url).json()
-    sanitize_weather(response, latitude, longitude)
 
-def sanitize_weather(response, latitude, longitude):
+    valid, CITY, STATE, COUNTRY = valid_location(str(coords[-1]["latitude"]), str(coords[-1]["longitude"]))
+
+    if valid:        
+        #compile request
+        url = f"{BASE_URL}lat={latitude}&lon={longitude}&appid={API_KEY}"
+        response = api_request.get(url).json()
+
+        #make human readable
+        sanitize_weather(response, latitude, longitude, CITY, STATE, COUNTRY)
+
+
+
+def sanitize_weather(response, latitude, longitude, CITY, STATE, COUNTRY):
     temp_kelvin = response['main']['temp']
     temp_celsius, temp_fahrenheit = kelvin_to_celsius_fahrenheit(temp_kelvin)
 
@@ -208,28 +233,44 @@ def sanitize_weather(response, latitude, longitude):
     sunrise_time = dt.datetime.utcfromtimestamp(response['sys']['sunrise'] + response['timezone'])
     sunset_time = dt.datetime.utcfromtimestamp(response['sys']['sunset'] + response['timezone'])
 
-    CITY, STATE, COUNTRY = get_location(str(latitude), str(longitude))
+    comma1 = ', '
+    comma2 = ', '
 
-    print(f"Temparature in {CITY}, {STATE}, {COUNTRY}: {temp_celsius:.2f} degrees Celsius or {temp_fahrenheit:.2f} degrees Fahrenheit.")
-    print(f"Temperature in {CITY}, {STATE}, {COUNTRY} feels like: {feels_like_celsius:.2f} degrees Celsius.")
-    print(f"Humidity in {CITY}, {STATE}, {COUNTRY}: {humidity}%")
-    print(f"Wind Speed in {CITY}, {STATE}, {COUNTRY}: {wind_speed} m/s")
-    print(f"General Weather in {CITY}, {STATE}, {COUNTRY}: {description}")
-    print(f"Sun rises in {CITY}, {STATE}, {COUNTRY} at {sunrise_time} local time.")
-    print(f"Sun sets in {CITY}, {STATE}, {COUNTRY} at {sunset_time} local time.")
+    if CITY == '':
+        comma1 = ''
+    if STATE == '':
+        comma2 = ''
 
-def get_location(latitude, longitude):
-    location = geolocator.reverse(latitude + ", " + longitude)
+    LOCATION = f'{CITY}{comma1}{STATE}{comma2}{COUNTRY}'
 
-    address = location.raw['address']
-    city = address.get('city', '')
-    state = address.get('state', '')
-    country = address.get('country', '')
+    print(f"Temparature in {LOCATION}: {temp_celsius:.2f} degrees Celsius or {temp_fahrenheit:.2f} degrees Fahrenheit.")
+    print(f"Temperature in {LOCATION} feels like: {feels_like_celsius:.2f} degrees Celsius.")
+    print(f"Humidity in {LOCATION}: {humidity}%")
+    print(f"Wind Speed in {LOCATION}: {wind_speed} m/s")
+    print(f"General Weather in {LOCATION}: {description}")
+    print(f"Sun rises in {LOCATION} at {sunrise_time} local time.")
+    print(f"Sun sets in {LOCATION} at {sunset_time} local time.")
+
     
-    return city, state, country
-    
-    
+def valid_location(latitude, longitude):
 
+    try:
+        location = geolocator.reverse(latitude + ", " + longitude)
+
+        if location and location.raw.get('address'):
+
+            address = location.raw['address']
+            city = address.get('city', '')
+            state = address.get('state', '')
+            country = address.get('country', '')
+
+            return True, city, state, country
+        else:
+            print("Location not found.") 
+            return False, '', '', ''
+    except(GeocoderTimedOut, GeocoderServiceError) as e:
+        print(f"error: {e}")
+        return False, '', '', ''
 
 
 #folium server to send coordinates over HTTP
@@ -247,12 +288,12 @@ class FoliumServer(BaseHTTPRequestHandler):
 
         #decode post_data (bytes) to utf-8
         data = post_data.decode("utf-8")
-        
-        print(data)
 
         #check for quit char
         if data.lower() == 'q':
             raise KeyboardInterrupt("Intended exception to exit webserver")
+        else:
+            print(data)
 
         #store coords to json
         #convert string data to actual json
@@ -262,8 +303,8 @@ class FoliumServer(BaseHTTPRequestHandler):
         #prevents resending information
         self._set_response()
 
-        #INPUT WEATHER API STUFF HERE?
 
+        #api weather request
         weather_request(BASE_URL, API_KEY, coords)
 
 #listen for coords

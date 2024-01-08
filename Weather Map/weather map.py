@@ -30,45 +30,47 @@ def weather_request(BASE_URL, API_KEY, coords):
         response = api_request.get(url).json()
 
         # make human readable
-        sanitize_weather(response, latitude, longitude, city, state, country)
+        print_weather(response, city, state, country)
 
 
-def sanitize_weather(response, latitude, longitude, city, state, country):
+def print_weather(response, city, state, country):
+
     temp_kelvin = response['main']['temp']
-    temp_celsius, temp_fahrenheit = kelvin_to_celsius_fahrenheit(temp_kelvin)
+    temp_celsius, temp_fahrenheit = sanitize_weather(temp_kelvin)
 
     feels_like_kelvin = response['main']['feels_like']
-    feels_like_celsius, feels_like_fahrenheit = kelvin_to_celsius_fahrenheit(feels_like_kelvin)
-    # wind_speed = response['wind']['speed']
+    feels_like_celsius, feels_like_fahrenheit = sanitize_weather(feels_like_kelvin)
 
     humidity = response['main']['humidity']
     description = response['weather'][0]['description']
-    # sunrise_time = dt.datetime.utcfromtimestamp(response['sys']['sunrise'] + response['timezone'])
-    # sunset_time = dt.datetime.utcfromtimestamp(response['sys']['sunset'] + response['timezone'])
 
-    comma1 = ', '
-    comma2 = ', '
-
-    if city == '':
-        comma1 = ''
-    if state == '':
-        comma2 = ''
+    comma1, comma2 = sanitize_location(city, state)
 
     location = f'{city}{comma1}{state}{comma2}{country}'
 
-    print(f"Temparature in {location}: {temp_celsius:.2f} degrees Celsius or {temp_fahrenheit:.2f} degrees Fahrenheit.")
-    print(f"Temperature in {location} feels like: {feels_like_celsius:.2f} degrees Celsius.")
-    print(f"Humidity in {location}: {humidity}%")
-    # print(f"Wind Speed in {LOCATION}: {wind_speed} m/s")
-    print(f"General Weather in {location}: {description}")
-    # print(f"Sun rises in {LOCATION} at {sunrise_time} local time.")
-    # print(f"Sun sets in {LOCATION} at {sunset_time} local time.")
+    print(f"The temparature in {location} is {temp_celsius:.2f}°C but feels like {feels_like_celsius:.2f}°C. The humiditiy is {humidity}% and is: {description}")
 
 
-def kelvin_to_celsius_fahrenheit(kelvin):
+# convert default kelvin to celsius/fahrenheit
+def sanitize_weather(kelvin):
     celsius = kelvin - 273.15
     fahrenheit = celsius * (9 / 5) + 32
+
     return celsius, fahrenheit
+
+
+# make location readable
+def sanitize_location(city, state):
+    if city == '':
+        comma1 = ''
+    else:
+        comma1 = ', '
+    if state == '':
+        comma2 = ''
+    else:
+        comma2 = ', '
+
+    return comma1, comma2
 
 
 def valid_location(latitude, longitude):
@@ -160,7 +162,7 @@ def custom_code(popup_variable_name, map_variable_name, FOLIUM_PORT):
                         <p class="popup-coordinates">
                             Lat: ${e.latlng.lat.toFixed(5)}, Long: ${e.latlng.lng.toFixed(5)}
                         </p>
-                            // send latitude and longitude over HTTP POST
+
                             <button class="popup-button"
                                 onClick="
                                 fetch('http://localhost:%s', {
@@ -175,13 +177,13 @@ def custom_code(popup_variable_name, map_variable_name, FOLIUM_PORT):
                                         longitude: ${e.latlng.lng}
                                     })
                                 });
-                                // code to add a marker
+
                                 L.marker(
                                     [${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}],
                                     {}
                                 ).addTo(%s);
                             "> Get Weather </button>
-                            // send quit char over HTTP POST
+
                             <button class="quit-button"
                                 onClick="
                                 fetch('http://localhost:%s', {
@@ -205,7 +207,7 @@ def custom_code(popup_variable_name, map_variable_name, FOLIUM_PORT):
 # create the folium map and insert the custom code for css stylesheet and get weather popup
 def create_folium_map(MAP_FILEPATH, STARTUP_COORDS, FOLIUM_PORT, STARTUP_ZOOM):
     # create folium map
-    vmap = folium.Map(STARTUP_COORDS, STARTUP_ZOOM)
+    vmap = folium.Map(STARTUP_COORDS, zoom_start=STARTUP_ZOOM)
 
     # add popup
     folium.LatLngPopup().add_to(vmap)
@@ -253,7 +255,7 @@ def open_folium_map(PROJECT_FILEPATH, MAP_FILEPATH):
             PROJECT_FILEPATH + MAP_FILEPATH
         )
     except Exception as ex:
-        print(f"Driver failed to open/find url: {ex}")
+        print(f"Driver failed to open/find path: {ex}")
 
     return driver
 

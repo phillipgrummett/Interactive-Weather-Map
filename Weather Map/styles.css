@@ -22,17 +22,24 @@
     text-decoration: none;
     display: inline-block;
     font-size: 16px;
-    margin: 4px 2px;
+    margin: 2px 2px 8px 2px;
     cursor: pointer;
     border-radius: 5px;
+    box-shadow: 0 9px #999;
 
-    transition-duration: 0.4s;
+    transition-duration: 0.2s;
 }
 
 .popup-button:hover {
-    background-color: #04AA6D;
+    background-color: #28582A;
     color: white;
 }
+
+.popup-button:active {
+    background-color: #28582A;
+    box-shadow: 0 5px #666;
+    transform: translateY(4px);
+  }
 
 .quit-button {
     background-color: #f44336;
@@ -43,14 +50,21 @@
     text-decoration: none;
     display: inline-block;
     font-size: 16px;
-    margin: 4px 2px;
+    margin: 2px 2px 8px 2px;
     cursor: pointer;
     border-radius: 5px;
+    box-shadow: 0 9px #999;
 
-    transition-duration: 0.4s;
+    transition-duration: 0.2s;
 }
 
 .quit-button:hover {
-    background-color: red;
+    background-color: #81251E;
     color: white;
 }
+
+.quit-button:active {
+    background-color: #81251E;
+    box-shadow: 0 5px #666;
+    transform: translateY(4px);
+  }
